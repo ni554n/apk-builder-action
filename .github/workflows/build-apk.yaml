@@ -1,0 +1,39 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: "Git repository URL"
+        required: true
+        default: "https://github.com/android/sunflower"
+      jdkVersion:
+        description: "OpenJDK version to use: 8 / 11 / 17 etc."
+        required: false
+        default: "11"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version: ${{ github.event.inputs.jdkVersion }}
+
+      - name: Clone project
+        run: git clone --depth=1 ${{ github.event.inputs.branch }} workspace
+
+      - name: Build APK
+        working-directory: ./workspace
+        run: |
+          if [ ! -f "gradlew" ]; then gradle wrapper; fi
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload the APK artifact with 1 day retention
+        uses: actions/upload-artifact@v3
+        with:
+          path: ./**/*.apk
+          retention-days: 1
