@@ -36,4 +36,5 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           path: ./**/*.apk
+          name: apk-archive
           retention-days: 1
