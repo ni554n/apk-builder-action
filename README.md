@@ -9,7 +9,7 @@ This action can completely automate the _debug_ APK building process in exchange
 ## Usage
 
 1. Fork this repo on GitHub.
-2. Go to the [Build Android APK Workflow](/../../actions/workflows/build-apk.yml) and select `Run workflow` dropdown menu.
+2. Go to the [Build Android APK Workflow](/../../actions/workflows/build-apk.yaml) and select `Run workflow` dropdown menu.
 3. Enter the Git repository URL of the Android project.
 4. Run the workflow and wait for the package to appear at the bottom of that workflow run's **_Summary_** tab.
 
