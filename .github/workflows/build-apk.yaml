@@ -1,4 +1,5 @@
 name: Build Android APK
+run-name: ${{ github.event.inputs.repository }}:${{ github.event.inputs.taskName }}
 
 on:
   workflow_dispatch:
