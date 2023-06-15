@@ -10,7 +10,7 @@ on:
       jdkVersion:
         description: "OpenJDK version to use: 8 / 11 / 17 etc."
         required: false
-        default: "11"
+        default: "17"
       taskName:
         description: "build.gradle task name: assemble[Flavor]Debug"
         required: false
