@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest # Android SDK is built-in in this image
     steps:
       - name: Setup JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: ${{ github.event.inputs.jdkVersion }}
@@ -38,7 +38,7 @@ jobs:
           ./gradlew ${{ github.event.inputs.taskName }} --stacktrace
 
       - name: Upload the APK artifact with 1 day retention
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           path: ./**/*.apk
           name: apk-archive
