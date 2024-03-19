@@ -28,7 +28,7 @@ jobs:
           java-version: ${{ github.event.inputs.jdkVersion }}
 
       - name: Clone project
-        run: git clone --depth=1 ${{ github.event.inputs.repository }} workspace
+        run: git clone --recurse-submodules --depth=1 ${{ github.event.inputs.repository }} workspace
 
       - name: Build APK
         working-directory: ./workspace
