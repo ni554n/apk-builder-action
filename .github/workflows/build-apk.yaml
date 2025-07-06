@@ -8,6 +8,10 @@ on:
         description: "Git repository URL"
         required: true
         default: "https://github.com/android/sunflower"
+      subdir:
+        description: "Relative subdirectory path if the project is nested"
+        required: false
+        default: ""
       jdkVersion:
         description: "OpenJDK version to use: 8 / 11 / 17 etc."
         required: false
@@ -31,7 +35,7 @@ jobs:
         run: git clone --recurse-submodules --depth=1 ${{ github.event.inputs.repository }} workspace
 
       - name: Build APK
-        working-directory: ./workspace
+        working-directory: ./workspace/${{ github.event.inputs.subdir }}
         run: |
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
@@ -40,6 +44,6 @@ jobs:
       - name: Upload the APK artifact with 1 day retention
         uses: actions/upload-artifact@v4
         with:
-          path: ./**/*.apk
+          path: workspace/**/*.apk
           name: apk-archive
           retention-days: 1
