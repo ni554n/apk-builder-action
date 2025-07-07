@@ -17,13 +17,13 @@ on:
         required: false
         default: "17"
       taskName:
-        description: "build.gradle task name: assemble[Flavor]Debug"
+        description: "build.gradle task name"
         required: false
         default: "assembleDebug"
 
 jobs:
   build:
-    runs-on: ubuntu-latest # Android SDK is built-in in this image
+    runs-on: ubuntu-latest # Android SDK is built into this image
     steps:
       - name: Setup JDK
         uses: actions/setup-java@v4
