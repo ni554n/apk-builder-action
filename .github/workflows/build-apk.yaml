@@ -51,6 +51,7 @@ jobs:
               mkdir -p $HOME/.android
               mv debug.keystore $HOME/.android/debug.keystore
             fi
+
             ./gradlew ${{ github.event.inputs.taskName }} \
               -Pandroid.injected.signing.store.file="$HOME/.android/debug.keystore" \
               -Pandroid.injected.signing.store.password=android \

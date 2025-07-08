@@ -1,6 +1,14 @@
 {
   "words": [
+    "androiddebugkey",
+    "genkey",
     "gradlew",
+    "keyalg",
+    "keypass",
+    "keysize",
+    "keytool",
+    "Pandroid",
+    "storepass",
     "temurin"
   ]
 }
