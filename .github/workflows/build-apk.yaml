@@ -17,9 +17,9 @@ on:
         required: false
         default: "17"
       taskName:
-        description: "build.gradle task name"
+        description: "build.gradle task name: assembleDebug, assembleRelease, etc."
         required: false
-        default: "assembleDebug"
+        default: "assembleRelease"
 
 jobs:
   build:
@@ -39,7 +39,21 @@ jobs:
         run: |
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
-          ./gradlew ${{ github.event.inputs.taskName }} --stacktrace
+          if [[ "${{ github.event.inputs.taskName }}" == *Release* ]]; then
+            echo "Task contains 'Release', attempting to sign with a debug key."
+            if [ ! -f "$HOME/.android/debug.keystore" ]; then
+              echo "Debug keystore not found. Creating one..."
+              keytool -genkey -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "C=US, O=Android, CN=Android Debug"
+            fi
+            ./gradlew ${{ github.event.inputs.taskName }} \
+              -Pandroid.injected.signing.store.file="$HOME/.android/debug.keystore" \
+              -Pandroid.injected.signing.store.password=android \
+              -Pandroid.injected.signing.key.alias=androiddebugkey \
+              -Pandroid.injected.signing.key.password=android \
+              --stacktrace
+          else
+            ./gradlew ${{ github.event.inputs.taskName }} --stacktrace
+          fi
 
       - name: Upload the APK artifact with 1 day retention
         uses: actions/upload-artifact@v4
