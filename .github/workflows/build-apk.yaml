@@ -39,11 +39,17 @@ jobs:
         run: |
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
+
           if [[ "${{ github.event.inputs.taskName }}" == *Release* ]]; then
-            echo "Task contains 'Release', attempting to sign with a debug key."
+            echo "Task contains 'Release', attempting to sign a release build with a debug key."
+
             if [ ! -f "$HOME/.android/debug.keystore" ]; then
               echo "Debug keystore not found. Creating one..."
-              keytool -genkey -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "C=US, O=Android, CN=Android Debug"
+
+              keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "C=US, O=Android, CN=Android Debug"
+
+              mkdir -p $HOME/.android
+              mv debug.keystore $HOME/.android/debug.keystore
             fi
             ./gradlew ${{ github.event.inputs.taskName }} \
               -Pandroid.injected.signing.store.file="$HOME/.android/debug.keystore" \
