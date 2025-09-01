@@ -9,11 +9,11 @@ on:
         required: true
         default: "https://github.com/android/sunflower"
       branchName:
-        description: "Git branch name"
+        description: "Git branch name [Optional]"
         required: false
         default: ""
       subdir:
-        description: "Relative subdirectory path when the project is nested"
+        description: "Relative subdirectory path when the project is nested [Optional]"
         required: false
         default: ""
       jdkVersion:
