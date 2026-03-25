@@ -17,7 +17,7 @@ on:
         required: false
         default: ""
       jdkVersion:
-        description: "OpenJDK version to use: 8 / 11 / 17 etc."
+        description: "OpenJDK version: 8, 17, 21, 25, …"
         required: false
         default: "17"
       taskName:
