@@ -17,7 +17,7 @@ This GitHub action completely automates the _release_ or _debug_ APK building pr
 
 ## Information
 
-**Author:** [Nissan Ahmed](https://anissan.com) ([@ni554n](https://twitter.com/ni554n))
+**Author:** Nissan Ahmed ([@ni554n](https://x.com/ni554n))
 
-**Donate:** [PayPal](https://paypal.me/ni554n)
+**Website:** [anissan.com](https://anissan.com)
 <img src="https://ping.anissan.com/?repo=apk-builder-action" width="0" height="0" align="right">
