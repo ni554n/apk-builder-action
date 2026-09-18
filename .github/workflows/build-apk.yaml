@@ -49,17 +49,6 @@ jobs:
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
 
-          error_log="$RUNNER_TEMP/gradle-stderr.log"
-          fifo="$RUNNER_TEMP/gradle-stderr.pipe"
-
-          mkfifo "$fifo"
-
-          # Duplicate stderr:
-          #   1. pass it unchanged to the GitHub Actions log
-          #   2. save a copy for the summary
-          tee "$error_log" < "$fifo" >&2 &
-          tee_pid=$!
-
           if [[ "${{ github.event.inputs.taskName }}" == *Release* ]]; then
             echo "Task contains 'Release', attempting to sign a release build with a debug key."
 
@@ -77,34 +66,10 @@ jobs:
               -Pandroid.injected.signing.store.password=android \
               -Pandroid.injected.signing.key.alias=androiddebugkey \
               -Pandroid.injected.signing.key.password=android \
-              --stacktrace 2>"$fifo"
+              --stacktrace
           else
-            ./gradlew ${{ github.event.inputs.taskName }} --stacktrace 2>"$fifo"
+            ./gradlew ${{ github.event.inputs.taskName }} --stacktrace
           fi
-
-          status=$?
-
-          # Make sure tee has finished writing the file.
-          wait "$tee_pid"
-          rm -f "$fifo"
-
-          if [ $status -ne 0 ]; then
-            {
-              echo "## ❌ Gradle build failed"
-              echo
-              echo '```text'
-
-              awk '
-                /^\* What went wrong:/ { found=1 }
-                /^\* Try:/ { exit }
-                found { print }
-              ' "$error_log"
-
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-          exit $status
 
       - name: Upload the APK artifact with 1 day retention
         uses: actions/upload-artifact@v6
