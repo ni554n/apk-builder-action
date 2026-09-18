@@ -49,6 +49,17 @@ jobs:
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
 
+          error_log="$RUNNER_TEMP/gradle-stderr.log"
+          fifo="$RUNNER_TEMP/gradle-stderr.pipe"
+
+          mkfifo "$fifo"
+
+          # Duplicate stderr:
+          #   1. pass it unchanged to the GitHub Actions log
+          #   2. save a copy for the summary
+          tee "$error_log" < "$fifo" >&2 &
+          tee_pid=$!
+
           if [[ "${{ github.event.inputs.taskName }}" == *Release* ]]; then
             echo "Task contains 'Release', attempting to sign a release build with a debug key."
 
@@ -66,19 +77,29 @@ jobs:
               -Pandroid.injected.signing.store.password=android \
               -Pandroid.injected.signing.key.alias=androiddebugkey \
               -Pandroid.injected.signing.key.password=android \
-              --stacktrace > gradle.log 2>&1
+              --stacktrace 2>"$fifo"
           else
-            ./gradlew ${{ github.event.inputs.taskName }} --stacktrace > gradle.log 2>&1
+            ./gradlew ${{ github.event.inputs.taskName }} --stacktrace 2>"$fifo"
           fi
 
           status=$?
+
+          # Make sure tee has finished writing the file.
+          wait "$tee_pid"
+          rm -f "$fifo"
 
           if [ $status -ne 0 ]; then
             {
               echo "## ❌ Gradle build failed"
               echo
               echo '```text'
-              sed -n '/^\* What went wrong:/,/^\* Try:/p' gradle.log
+
+              awk '
+                /^\* What went wrong:/ { found=1 }
+                /^\* Try:/ { exit }
+                found { print }
+              ' "$error_log"
+
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
