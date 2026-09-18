@@ -71,6 +71,8 @@ jobs:
             ./gradlew ${{ github.event.inputs.taskName }} --stacktrace | tee gradle.log
           fi
 
+          status=${PIPESTATUS[0]}
+
           if [ $status -ne 0 ]; then
             {
               echo "## ❌ Gradle build failed"
@@ -80,6 +82,8 @@ jobs:
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
+
+          exit $status
 
       - name: Upload the APK artifact with 1 day retention
         uses: actions/upload-artifact@v6
