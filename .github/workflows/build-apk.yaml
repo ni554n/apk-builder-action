@@ -66,19 +66,19 @@ jobs:
               -Pandroid.injected.signing.store.password=android \
               -Pandroid.injected.signing.key.alias=androiddebugkey \
               -Pandroid.injected.signing.key.password=android \
-              --stacktrace | tee gradle.log
+              --stacktrace > gradle.log 2>&1
           else
-            ./gradlew ${{ github.event.inputs.taskName }} --stacktrace | tee gradle.log
+            ./gradlew ${{ github.event.inputs.taskName }} --stacktrace > gradle.log 2>&1
           fi
 
-          status=${PIPESTATUS[0]}
+          status=$?
 
           if [ $status -ne 0 ]; then
             {
               echo "## ❌ Gradle build failed"
               echo
               echo '```text'
-              cat gradle.log
+              sed -n '/^\* What went wrong:/,/^\* Try:/p' gradle.log
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
