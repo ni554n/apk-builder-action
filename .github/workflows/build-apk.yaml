@@ -78,7 +78,7 @@ jobs:
               echo "## ❌ Gradle build failed"
               echo
               echo '```text'
-              sed -n '/^\* What went wrong:/,/^\* Try:/p' gradle.log
+              cat gradle.log
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
