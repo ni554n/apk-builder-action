@@ -66,9 +66,19 @@ jobs:
               -Pandroid.injected.signing.store.password=android \
               -Pandroid.injected.signing.key.alias=androiddebugkey \
               -Pandroid.injected.signing.key.password=android \
-              --stacktrace
+              --stacktrace | tee gradle.log
           else
-            ./gradlew ${{ github.event.inputs.taskName }} --stacktrace
+            ./gradlew ${{ github.event.inputs.taskName }} --stacktrace | tee gradle.log
+          fi
+
+          if [ $status -ne 0 ]; then
+            {
+              echo "## ❌ Gradle build failed"
+              echo
+              echo '```text'
+              sed -n '/^\* What went wrong:/,/^\* Try:/p' gradle.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload the APK artifact with 1 day retention
