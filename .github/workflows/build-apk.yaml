@@ -52,36 +52,24 @@ jobs:
           JDK='${{ github.event.inputs.jdkVersion }}'
           TASK='${{ github.event.inputs.taskName }}'
 
-          fmt() {
-            if [ -z "$1" ]; then
-              echo "_empty (default)_"
-            else
-              echo "\`$1\`"
-            fi
-          }
+          if [ -z "$BRANCH" ]; then
+            BRANCH=$(git -C workspace rev-parse --abbrev-ref HEAD 2>/dev/null || echo "default")
+          fi
 
-          BRANCH_DISPLAY=$(fmt "$BRANCH")
-          SUBDIR_DISPLAY=$(fmt "$SUBDIR")
+          if [ -z "$SUBDIR" ]; then
+            SUBDIR_DISPLAY="_project root_"
+          else
+            SUBDIR_DISPLAY="\`$SUBDIR\`"
+          fi
 
           {
             echo "## :clipboard: Build Inputs"
             echo ""
-            echo "| Input | Effective Value | Default Value |"
-            echo "|---|---|---|"
-            echo "| \`repository\` | \`$REPO\` | \`https://github.com/android/sunflower\` |"
-            echo "| \`branchName\` | $BRANCH_DISPLAY | _empty (default branch)_ |"
-            echo "| \`subdir\` | $SUBDIR_DISPLAY | _empty (project root)_ |"
-            echo "| \`jdkVersion\` | \`$JDK\` | \`17\` |"
-            echo "| \`taskName\` | \`$TASK\` | \`assembleRelease\` |"
-            echo ""
-            if [ -n "$SUBDIR" ]; then
-              echo "> **Workspace:** \`./workspace/$SUBDIR\`"
-            else
-              echo "> **Workspace:** \`./workspace/\`"
-            fi
-            if [ -z "$BRANCH" ]; then
-              echo "> **Branch:** _default branch of repository_"
-            fi
+            echo "- **repository:** [$REPO]($REPO)"
+            echo "- **branchName:** \`$BRANCH\`"
+            echo "- **subdir:** $SUBDIR_DISPLAY"
+            echo "- **jdkVersion:** \`$JDK\`"
+            echo "- **taskName:** \`$TASK\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build APK
