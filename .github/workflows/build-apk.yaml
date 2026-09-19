@@ -28,6 +28,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest # Android SDK is built into this image
+
     steps:
       - name: Setup JDK
         uses: actions/setup-java@v5
@@ -46,8 +47,14 @@ jobs:
       - name: Build APK
         working-directory: ./workspace/${{ github.event.inputs.subdir }}
         run: |
-          if [ ! -f "gradlew" ]; then gradle wrapper; fi
+          if [ ! -f "gradlew" ]; then
+            gradle wrapper
+          fi
+
           chmod +x gradlew
+
+          # Accept all Android SDK/NDK licenses non-interactively.
+          yes | sdkmanager --licenses > /dev/null || true
 
           LOG_FILE="$(mktemp)"
 
@@ -55,6 +62,7 @@ jobs:
             {
               echo '## :x: Gradle Build Failed — `${{ github.event.inputs.taskName }}`'
               echo ""
+
               if grep -q "What went wrong:" "$LOG_FILE"; then
                 echo '```'
                 awk '/\* What went wrong:/{p=1} p; /\* Try:/{if(p) exit}' "$LOG_FILE"
@@ -65,6 +73,7 @@ jobs:
                 tail -n 100 "$LOG_FILE"
                 echo '```'
               fi
+
               echo ""
               echo '> Full logs are available in the "Build APK" step output above.'
             } >> "$GITHUB_STEP_SUMMARY"
@@ -76,22 +85,34 @@ jobs:
             if [ ! -f "$HOME/.android/debug.keystore" ]; then
               echo "Debug keystore not found. Creating one..."
 
-              keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "C=US, O=Android, CN=Android Debug"
+              keytool -genkey -v \
+                -keystore debug.keystore \
+                -storepass android \
+                -alias androiddebugkey \
+                -keypass android \
+                -keyalg RSA \
+                -keysize 2048 \
+                -validity 10000 \
+                -dname "C=US, O=Android, CN=Android Debug"
 
-              mkdir -p $HOME/.android
-              mv debug.keystore $HOME/.android/debug.keystore
+              mkdir -p "$HOME/.android"
+              mv debug.keystore "$HOME/.android/debug.keystore"
             fi
 
             set +e
             set -o pipefail
+
             ./gradlew ${{ github.event.inputs.taskName }} \
               -Pandroid.injected.signing.store.file="$HOME/.android/debug.keystore" \
               -Pandroid.injected.signing.store.password=android \
               -Pandroid.injected.signing.key.alias=androiddebugkey \
               -Pandroid.injected.signing.key.password=android \
               --stacktrace 2>&1 | tee "$LOG_FILE"
+
             STATUS=${PIPESTATUS[0]}
+
             set -e
+
             if [ $STATUS -ne 0 ]; then
               handle_failure
               exit $STATUS
@@ -99,9 +120,14 @@ jobs:
           else
             set +e
             set -o pipefail
-            ./gradlew ${{ github.event.inputs.taskName }} --stacktrace 2>&1 | tee "$LOG_FILE"
+
+            ./gradlew ${{ github.event.inputs.taskName }} \
+              --stacktrace 2>&1 | tee "$LOG_FILE"
+
             STATUS=${PIPESTATUS[0]}
+
             set -e
+
             if [ $STATUS -ne 0 ]; then
               handle_failure
               exit $STATUS
