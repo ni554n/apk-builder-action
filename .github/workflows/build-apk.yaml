@@ -49,6 +49,27 @@ jobs:
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
 
+          LOG_FILE="$(mktemp)"
+
+          handle_failure() {
+            {
+              echo '## :x: Gradle Build Failed — `${{ github.event.inputs.taskName }}`'
+              echo ""
+              if grep -q "What went wrong:" "$LOG_FILE"; then
+                echo '```'
+                awk '/\* What went wrong:/{p=1} p; /\* Try:/{if(p) exit}' "$LOG_FILE"
+                echo '```'
+              else
+                echo 'No `* What went wrong:` block found. Tail of build log:'
+                echo '```'
+                tail -n 100 "$LOG_FILE"
+                echo '```'
+              fi
+              echo ""
+              echo '> Full logs are available in the "Build APK" step output above.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          }
+
           if [[ "${{ github.event.inputs.taskName }}" == *Release* ]]; then
             echo "Task contains 'Release', attempting to sign a release build with a debug key."
 
@@ -61,14 +82,30 @@ jobs:
               mv debug.keystore $HOME/.android/debug.keystore
             fi
 
+            set +e
+            set -o pipefail
             ./gradlew ${{ github.event.inputs.taskName }} \
               -Pandroid.injected.signing.store.file="$HOME/.android/debug.keystore" \
               -Pandroid.injected.signing.store.password=android \
               -Pandroid.injected.signing.key.alias=androiddebugkey \
               -Pandroid.injected.signing.key.password=android \
-              --stacktrace
+              --stacktrace 2>&1 | tee "$LOG_FILE"
+            STATUS=${PIPESTATUS[0]}
+            set -e
+            if [ $STATUS -ne 0 ]; then
+              handle_failure
+              exit $STATUS
+            fi
           else
-            ./gradlew ${{ github.event.inputs.taskName }} --stacktrace
+            set +e
+            set -o pipefail
+            ./gradlew ${{ github.event.inputs.taskName }} --stacktrace 2>&1 | tee "$LOG_FILE"
+            STATUS=${PIPESTATUS[0]}
+            set -e
+            if [ $STATUS -ne 0 ]; then
+              handle_failure
+              exit $STATUS
+            fi
           fi
 
       - name: Upload the APK artifact with 1 day retention
