@@ -1,194 +1,61 @@
+
 name: Build Android APK
-run-name: ${{ inputs.repository }} ${{ inputs.branchName }} ${{ inputs.subdir && format('[/{0}]', inputs.subdir) }} :${{ inputs.taskName }}
 
 on:
   workflow_dispatch:
-    inputs:
-      repository:
-        description: "Public Git repository top URL"
-        required: true
-        default: "https://github.com/android/sunflower"
-      branchName:
-        description: "Git branch name [Optional]"
-        required: false
-        default: ""
-      subdir:
-        description: "Relative subdirectory path when the project is nested [Optional]"
-        required: false
-        default: ""
-      jdkVersion:
-        description: "OpenJDK version: 8, 17, 21, 25, …"
-        required: false
-        default: "17"
-      taskName:
-        description: "build.gradle task name: assembleDebug, assembleRelease, etc."
-        required: false
-        default: "assembleRelease"
+
+permissions:
+  contents: read
 
 jobs:
   build:
-    runs-on: ubuntu-latest # Android SDK is built into this image
+    name: Build HyNova APK
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Setup JDK
-        uses: actions/setup-java@v6
+      - name: Checkout fork repository
+        uses: actions/checkout@v4
         with:
-          distribution: "temurin"
-          java-version: ${{ inputs.jdkVersion }}
+          ref: main
+          fetch-depth: 1
+          submodules: recursive
 
-      - name: Clone project
-        env:
-          REPO: ${{ inputs.repository }}
-          BRANCH: ${{ inputs.branchName }}
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Locate Gradle project
+        id: project
+        shell: bash
         run: |
-          LOG_FILE="$(mktemp)"
-          exec > >(tee -a "$LOG_FILE") 2>&1
-
-          handle_failure() {
-            local status=${1:-$?}
-            trap - ERR
-            {
-              echo "## :x: Clone project failed (exit code $status)"
-              echo ""
-              echo '```'
-              tail -n 100 "$LOG_FILE"
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit "$status"
-          }
-          trap 'handle_failure "$?"' ERR
-
-          if [ -n "$BRANCH" ]; then
-            git clone --recurse-submodules --depth=1 --branch "$BRANCH" "$REPO" workspace
+          if [ -f gradlew ]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          elif [ -f app/gradlew ]; then
+            echo "dir=app" >> "$GITHUB_OUTPUT"
           else
-            git clone --recurse-submodules --depth=1 "$REPO" workspace
+            echo "ERROR: gradlew not found in repository root or app/"
+            find . -maxdepth 3 \( -name gradlew -o -name settings.gradle -o -name settings.gradle.kts \)
+            exit 1
           fi
-
-      - name: Summarize build inputs
-        env:
-          REPO: ${{ inputs.repository }}
-          BRANCH: ${{ inputs.branchName }}
-          SUBDIR: ${{ inputs.subdir }}
-          JDK: ${{ inputs.jdkVersion }}
-          TASK: ${{ inputs.taskName }}
-        run: |
-          if [ -z "$BRANCH" ]; then
-            BRANCH=$(git -C workspace rev-parse --abbrev-ref HEAD 2>/dev/null || echo "default")
-          fi
-
-          if [ -z "$SUBDIR" ]; then
-            SUBDIR_DISPLAY="_project root_"
-          else
-            SUBDIR_DISPLAY="\`$SUBDIR\`"
-          fi
-
-          {
-            echo "## :clipboard: Build Inputs"
-            echo ""
-            echo "- **repository:** [$REPO]($REPO)"
-            echo "- **branchName:** \`$BRANCH\`"
-            echo "- **subdir:** $SUBDIR_DISPLAY"
-            echo "- **jdkVersion:** \`$JDK\`"
-            echo "- **taskName:** \`$TASK\`"
-          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build APK
-        working-directory: ./workspace/${{ inputs.subdir }}
-        env:
-          TASK_NAME: ${{ inputs.taskName }}
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
         run: |
-          LOG_FILE="$(mktemp)"
-          exec > >(tee -a "$LOG_FILE") 2>&1
-
-          handle_failure() {
-            local status=${1:-$?}
-            trap - ERR
-            {
-              echo "## :x: Build failed — \`$TASK_NAME\` (exit code $status)"
-              echo ""
-
-              if grep -q "What went wrong:" "$LOG_FILE"; then
-                echo '```'
-                awk '{gsub(/\x1B\[[0-9;]*[a-zA-Z]/,"")} /What went wrong:/{p=1} p; /\* Try:/{if(p) exit}' "$LOG_FILE"
-                echo '```'
-              else
-                echo 'No Gradle failure block found. Tail of build log:'
-                echo '```'
-                tail -n 100 "$LOG_FILE"
-                echo '```'
-              fi
-
-              echo ""
-              echo '> Full logs are available in the "Build APK" step output above.'
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit "$status"
-          }
-          trap 'handle_failure "$?"' ERR
-
-          # Run a command, tee its output into $LOG_FILE, and on failure
-          # write a failure summary and exit with the command's status.
-          run_logged() {
-            set +e
-            "$@"
-            local status=$?
-            set -e
-            if [ "$status" -ne 0 ]; then
-              handle_failure "$status"
-              exit "$status"
-            fi
-          }
-
-          if [ ! -f "gradlew" ]; then
-            echo "gradlew not found, generating wrapper..."
-            run_logged gradle wrapper
-          fi
-
           chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
 
-          # Accept all Android SDK/NDK licenses non-interactively.
-          yes | sdkmanager --licenses > /dev/null || true
-
-          SIGNING_ARGS=()
-          if [[ "$TASK_NAME" == *Release* ]]; then
-            echo "Task contains 'Release', attempting to sign a release build with a debug key."
-
-            mkdir -p "$HOME/.android"
-            if [ ! -f "$HOME/.android/debug.keystore" ]; then
-              echo "Debug keystore not found. Creating one..."
-
-              keytool -genkey -v \
-                -keystore "$HOME/.android/debug.keystore" \
-                -storepass android \
-                -alias androiddebugkey \
-                -keypass android \
-                -keyalg RSA \
-                -keysize 2048 \
-                -validity 10000 \
-                -dname "C=US, O=Android, CN=Android Debug"
-            fi
-
-            SIGNING_ARGS=(
-              "-Pandroid.injected.signing.store.file=$HOME/.android/debug.keystore"
-              "-Pandroid.injected.signing.store.password=android"
-              "-Pandroid.injected.signing.key.alias=androiddebugkey"
-              "-Pandroid.injected.signing.key.password=android"
-            )
-          fi
-
-          run_logged ./gradlew $TASK_NAME "${SIGNING_ARGS[@]}" --stacktrace
-
-      - name: Upload the APK artifact with 1 day retention
-        uses: actions/upload-artifact@v6
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          path: workspace/**/*.apk
-          name: apk-archive
-          retention-days: 1
-
-      - name: Summarize successful build
-        if: success()
-        run: |
-          {
-            echo "## :white_check_mark: Build succeeded"
-            echo ""
-            echo "If the APK artifact does not appear automatically, reload this page."
-          } >> "$GITHUB_STEP_SUMMARY"
+          name: HyNova-Android-APK
+          path: |
+            **/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 7
